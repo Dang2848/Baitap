@@ -1,7 +1,7 @@
 #include "stm32f10x.h"
 #include <stdint.h>
 
-/* HAM MAIN: CAU HINH TIM3 PHAT PWM TREN 4 CHAN GPIO. */\n
+/* HAM MAIN: CAU HINH TIM3 PHAT PWM TREN 4 CHAN GPIO. */
 int main(void)
 {
     /* BAT CLOCK GPIOA/GPIOB/AFIO VA TIMER TIM3. 
