@@ -44,13 +44,13 @@ static void adc_init(void)
     RCC->CFGR = (RCC->CFGR & ~(3U << 14)) | (2U << 14);
     ADC1->CR1 = 0;
     ADC1->CR2 = ADC_CR2_ADON;
-    ADC1->SMPR2 = (7U << 0); 
+    ADC1->SMPR2 = (7U << 0); /*TAN SO LAY MAU*/
     ADC1->SQR1 = 0;
     ADC1->SQR3 = 0;         
     delay(10000U);
     ADC1->CR2 |= ADC_CR2_ADON;
     delay(10000U);
-    ADC1->CR2 |= ADC_CR2_CAL;
+    ADC1->CR2 |= ADC_CR2_CAL; /*HIEU CHUAN*/
     while (ADC1->CR2 & ADC_CR2_CAL) {}
 }
 
