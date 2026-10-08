@@ -268,11 +268,10 @@ static void adc_init(void)
 /*
   KHOI TAO TIM3
   TIM3 duoc dung lam nguon trigger cho ADC.
-  Gia su TIM3 clock = 8 MHz:
+  TIM3 clock = 8 MHz:
   Timer frequency:
        8 MHz / (PSC + 1) / (ARR + 1)
  
-  Chon:
        PSC = 7999
        ARR = 9
  
@@ -481,10 +480,6 @@ static void dma_uart_init(void)
  
        2048 -> "2048"
  
-  Ham tra ve do dai chuoi.
- 
-  Khong su dung sprintf de tranh phu thuoc thu vien
-  va giu chuong trinh bare-metal don gian.
 */
 static uint32_t uint_to_string(uint32_t value, char *buffer)
 {
@@ -699,7 +694,7 @@ void DMA1_Channel1_IRQHandler(void)
     if ((status & DMA_ISR_HTIF1) != 0U)
     {
         /*
-          Xoa co Half Transfer.
+          Xoa cau hinh Half Transfer.
          */
         DMA1->IFCR = DMA_IFCR_CHTIF1;
 
@@ -717,7 +712,7 @@ void DMA1_Channel1_IRQHandler(void)
     if ((status & DMA_ISR_TCIF1) != 0U)
     {
         /*
-          Xoa co Transfer Complete.
+          Xoa cau hinh Transfer Complete.
          */
         DMA1->IFCR = DMA_IFCR_CTCIF1;
 
@@ -749,7 +744,7 @@ void DMA1_Channel4_IRQHandler(void)
     if ((DMA1->ISR & DMA_ISR_TCIF4) != 0U)
     {
         /*
-          Xoa co Transfer Complete.
+          Xoa cau  Transfer Complete.
          */
         DMA1->IFCR = DMA_IFCR_CTCIF4;
 
@@ -831,11 +826,7 @@ int main(void)
             /*
               Tao chuoi tu 50 mau dau.
              */
-            length = make_adc_block(
-                uart_buffer_0,
-                0U,
-                ADC_HALF_COUNT
-            );
+            length = make_adc_block(uart_buffer_0,0U,ADC_HALF_COUNT);
 
 
             /*
@@ -843,10 +834,7 @@ int main(void)
              
               Neu DMA UART dang ban thi ham se bo qua.
              */
-            uart_dma_send(
-                uart_buffer_0,
-                length
-            );
+            uart_dma_send(uart_buffer_0,length);
         }
 
 
@@ -867,20 +855,13 @@ int main(void)
             /*
               Tao chuoi tu 50 mau cuoi.
              */
-            length = make_adc_block(
-                uart_buffer_1,
-                ADC_HALF_COUNT,
-                ADC_HALF_COUNT
-            );
+            length = make_adc_block(uart_buffer_1,ADC_HALF_COUNT,ADC_HALF_COUNT);
 
 
             /*
               Gui 50 mau cuoi qua UART bang DMA.
              */
-            uart_dma_send(
-                uart_buffer_1,
-                length
-            );
+            uart_dma_send(uart_buffer_1,length);
         }
     }
 }

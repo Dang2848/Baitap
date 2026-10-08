@@ -1,0 +1,3 @@
+GIAI NEN -> CHAY ./setup_freertos.sh -> make clean -> make -> make flash
+
+FreeRTOS Kernel duoc pin o V11.3.0, commit 9b777ae5c5b8e9e456065a00294d1e5f5f9facf5.
