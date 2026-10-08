@@ -1,3 +1,0 @@
-Project files in this folder are provided for educational use.
-FreeRTOS Kernel is fetched separately from the official FreeRTOS/FreeRTOS-Kernel repository.
-See the FreeRTOS Kernel repository for its license and notices.

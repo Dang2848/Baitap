@@ -1,37 +1,34 @@
 #include <stdint.h>
+
 #include "stm32f10x.h"
+#include "system_stm32f10x.h"
 #include "FreeRTOS.h"
 #include "task.h"
+void SystemInit(void);
+/*
+=========================================================
+KHAI BAO CHAN LED
 
-
-/* 
- KHAI BAO CHAN LED
- LED1 -> PA0
- LED2 -> PA1
- LED3 -> PA2
- Moi bit trong GPIOA->ODR tuong ung voi mot chan GPIO.
+LED1 -> PA0
+LED2 -> PA1
+LED3 -> PA2
+=========================================================
 */
 
 #define LED1_PIN    ((uint16_t)(1U << 0))
 #define LED2_PIN    ((uint16_t)(1U << 1))
 #define LED3_PIN    ((uint16_t)(1U << 2))
 
-/* Gom 3 chan LED thanh mot mask */
 #define LED_MASK    ((uint32_t)(LED1_PIN | LED2_PIN | LED3_PIN))
 
 
-/* 
- CAC HAM THAY THE THU VIEN LIBC
- cac ham nhu memset(), memcpy(), memmove(), memcmp(). FreeRTOS co the su dung cac ham nay, vi vay ta tu dinh nghia de tranh loi:
- */
-
-
 /*
- memset()
- Gan cung mot gia tri cho mot vung nho.
- * ptr   : dia chi vung nho
- * value : gia tri can ghi
- * num   : so byte can ghi
+=========================================================
+CAC HAM THAY THE THU VIEN LIBC
+
+Do project su dung -nostdlib nen tu dinh nghia cac ham
+xu ly bo nho ma FreeRTOS co the su dung.
+=========================================================
 */
 
 void *memset(void *ptr, int value, unsigned int num)
@@ -48,13 +45,6 @@ void *memset(void *ptr, int value, unsigned int num)
 }
 
 
-/* 
-  memcpy()
- 
-  Sao chep num byte tu src sang dest.
-  Hai vung nho khong duoc chong lan.
- */
-
 void *memcpy(void *dest, const void *src, unsigned int num)
 {
     unsigned char *d = (unsigned char *)dest;
@@ -70,22 +60,11 @@ void *memcpy(void *dest, const void *src, unsigned int num)
 }
 
 
-/* 
-  memmove()
-  Sao chep num byte tu src sang dest.
-  Khac memcpy(), memmove() van hoat dong dung khi hai vung
-  nho bi chong lan.
- */
-
 void *memmove(void *dest, const void *src, unsigned int num)
 {
     unsigned char *d = (unsigned char *)dest;
     const unsigned char *s = (const unsigned char *)src;
 
-    /*
-      Truong hop vung dich nam truoc vung nguon:
-      sao chep tu dau den cuoi.
-     */
     if (d < s)
     {
         while (num > 0U)
@@ -96,10 +75,6 @@ void *memmove(void *dest, const void *src, unsigned int num)
     }
     else
     {
-        /*
-         Truong hop vung nho co the chong lan:
-         sao chep tu cuoi ve dau de tranh ghi de du lieu.
-         */
         d += num;
         s += num;
 
@@ -113,16 +88,6 @@ void *memmove(void *dest, const void *src, unsigned int num)
     return dest;
 }
 
-
-/* 
-  memcmp()
- So sanh num byte cua hai vung nho.
-
-  Tra ve:
- *     0  : hai vung giong nhau
- *    -1  : a < b
- *     1  : a > b
-*/
 
 int memcmp(const void *a, const void *b, unsigned int num)
 {
@@ -145,72 +110,75 @@ int memcmp(const void *a, const void *b, unsigned int num)
 }
 
 
-/* 
- KHOI TAO GPIOA
- 
- Su dung:
-      PA0 -> LED1
-      PA1 -> LED2
-      PA2 -> LED3
- 
-  Che do:
- *     Output Push-Pull
- *     Toc do 50 MHz
+/*
+=========================================================
+KHOI TAO GPIOA
+
+PA0, PA1, PA2:
+Output Push-Pull
+Toc do 50 MHz
+=========================================================
 */
 
 static void LED_Init(void)
 {
-    /* Bat clock cho GPIOA */
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
 
+    GPIOA->CRL = 0x33333333UL;
 
-    /*
-     Cau hinh PA0, PA1, PA2.
-     
-     GPIOA->CRL dieu khien PA0 -> PA7.
-    
-     Moi chan GPIO su dung 4 bit:
-    
-     * PA0 -> bit 3:0
-     * PA1 -> bit 7:4
-     * PA2 -> bit 11:8
-    
-     Gia tri 0x3:
-     * MODE = 11 -> Output 50 MHz
-     * CNF  = 00 -> Output Push-Pull
-     */
-    GPIOA->CRL &= ~0x00000FFFUL;
-    GPIOA->CRL |=  0x00000333UL;
-
-
-    /*
-     Tat ca LED luc khoi dong.
-    
-     BRR = Bit Reset Register.
-     Ghi 1 vao bit nao thi chan GPIO tuong ung ve muc 0.
-     */
-    GPIOA->BRR = LED_MASK;
+    GPIOA->BRR = 0x00FFUL;
 }
 
 
 /*
-  HAM DIEU KHIEN NHAP NHAY LED
- 
- Dau vao:
- 
-      pin
-        Chan GPIO dieu khien LED.
+=========================================================
+CAU TRUC CAU HINH TASK
 
-     frequency
-         Tan so nhap nhay, don vi Hz.
+Moi task co:
 
- Cong thuc:   T = 1 / f
+pin
+    Chan LED
 
- Mot chu ky LED gom:  ON + OFF
- Do do thoi gian moi trang thai: T/2 = 1 / (2*f)
+frequency
+    Tan so nhap nhay Hz
+=========================================================
+*/
 
- Quy doi sang ms: delay_ms = 1000 / (2*f)
+typedef struct
+{
+    uint16_t pin;
+    float frequency;
+} LED_Config;
 
+
+/*
+=========================================================
+HAM CHUNG DIEU KHIEN NHAP NHAY LED
+
+Dau vao:
+
+pin
+    Chan LED
+
+frequency
+    Tan so nhap nhay, don vi Hz
+
+Cong thuc:
+
+T = 1 / f
+
+Moi chu ky gom:
+
+ON + OFF
+
+Do do:
+
+T_on = T_off = 1 / (2*f)
+
+Doi sang ms:
+
+delay_ms = 1000 / (2*f)
+=========================================================
 */
 
 static void LED_Blink(uint16_t pin, float frequency)
@@ -219,11 +187,8 @@ static void LED_Blink(uint16_t pin, float frequency)
 
 
     /*
-      Kiem tra tan so khong hop le.
-     
-     Neu frequency <= 0 thi xoa task hien tai.
-     Sau do return de tranh thuc hien phep chia cho 0.
-     */
+    Kiem tra tan so hop le
+    */
     if (frequency <= 0.0f)
     {
         vTaskDelete(NULL);
@@ -232,208 +197,215 @@ static void LED_Blink(uint16_t pin, float frequency)
 
 
     /*
-     Tinh thoi gian giu moi trang thai LED.
-     1000 ms / (2*f)
-     */
+    Tinh thoi gian cho moi trang thai LED
+    */
     delay_ms =
         (uint32_t)(1000.0f / (2.0f * frequency));
 
 
     /*
-     Vong lap dieu khien LED.
-      LED ON
-     -> cho mot nua chu ky
-     -> LED OFF
-     -> cho mot nua chu ky
-     -> lap lai
-     */
+    Lap vo han:
+
+    ON
+    Delay
+    OFF
+    Delay
+    Lap lai
+    */
     while (1)
     {
         /*
-         Bat LED.
-         SS Register:
-         ghi 1 vao bit -> GPIO = 1.
-         */
+        Bat LED
+        */
         GPIOA->BSRR = (uint32_t)pin;
 
+
         /*
-          Tam dung task trong delay_ms.
-         vTaskDelay() khong chiem CPU nhu delay bang vong lap.
-         Task se vao trang thai Blocked de Scheduler co the
-         chuyen sang task khac.
-         */
+        Tam dung task.
+        Scheduler co the chay task khac.
+        */
         vTaskDelay(pdMS_TO_TICKS(delay_ms));
 
 
         /*
-          Tat LED.
-          BRR:
-          ghi 1 vao bit -> GPIO = 0.
-         */
+        Tat LED
+        */
         GPIOA->BRR = (uint32_t)pin;
 
+
         /*
-          Cho het nua chu ky con lai.
-         */
+        Cho het nua chu ky
+        */
         vTaskDelay(pdMS_TO_TICKS(delay_ms));
     }
 }
 
 
-/* 
-  TASK DIEU KHIEN LED1
-  PA0 -> 0.1 Hz
- 
-  Chu ky:
-      T = 1 / 0.1 = 10 giay
- 
-  Thoi gian:
-      ON  = 5 giay
-      OFF = 5 giay
- */
+/*
+=========================================================
+TASK CHUNG CHO CA 3 LED
 
-static void LED1_Task(void *argument)
+Moi task nhan mot cau hinh khac nhau:
+
+LED1 -> PA0 + 0.1 Hz
+LED2 -> PA1 + 1 Hz
+LED3 -> PA2 + 10 Hz
+=========================================================
+*/
+
+static void LED_Task(void *argument)
 {
-    /*
-      Task nay khong su dung tham so argument.
-     */
-    (void)argument;
+    LED_Config *config = (LED_Config *)argument;
 
 
     /*
-     * Goi ham dieu khien LED chung.
-     */
+    Goi ham nhap nhay chung
+    */
     LED_Blink(
-        LED1_PIN,
-        0.1f
+        config->pin,
+        config->frequency
     );
+
+
+    /*
+    LED_Blink khong return trong truong hop binh thuong
+    */
+    while (1)
+    {
+    }
 }
 
 
-/* 
-  TASK DIEU KHIEN LED2
- 
-  PA1 -> 1 Hz
- 
-  Chu ky:
-      T = 1 / 1 = 1 giay
- 
-  Thoi gian:
-      ON  = 500 ms
-      OFF = 500 ms
+/*
+=========================================================
+CAU HINH CHO 3 LED
+
+Chi can thay doi frequency tai day de thay doi
+tan so nhap nhay cua tung LED.
+=========================================================
 */
 
-static void LED2_Task(void *argument)
+
+static LED_Config led1_config =
 {
-    (void)argument;
+    LED1_PIN,
+   0.1f
+};
 
-    LED_Blink(
-        LED2_PIN,
-        1.0f
-    );
-}
+static LED_Config led2_config =
+{
+    LED2_PIN,
+    1.0f
+};
+
+static LED_Config led3_config =
+{
+    LED3_PIN,
+    10.0f
+};
 
 
-/* 
- TASK DIEU KHIEN LED3
- 
- PA2 -> 10 Hz
- 
- Chu ky:
-     T = 1 / 10 = 0.1 giay
+/*
+=========================================================
+HAM MAIN
 
- Thoi gian:
-      ON  = 50 ms
-      OFF = 50 ms
+Trinh tu:
+
+1. Khoi tao clock
+2. Khoi tao GPIO
+3. Tao 3 task
+4. Khoi dong Scheduler
+=========================================================
 */
-
-static void LED3_Task(void *argument)
-{
-    (void)argument;
-
-    LED_Blink(
-        LED3_PIN,
-        10.0f
-    );
-}
-
-
-/* 
-  HAM MAIN
- 
-  Trinh tu:
- 
-      1. Khoi tao GPIO
-      2. Tao Task 1
-      3. Tao Task 2
-      4. Tao Task 3
-      5. Khoi dong FreeRTOS Scheduler
- */
 
 int main(void)
 {
     /*
-      Khoi tao GPIOA.
-     */
+    Khoi tao clock he thong
+    configCPU_CLOCK_HZ = 72 MHz
+    */
+    SystemInit();
+
+
+    /*
+    Khoi tao GPIOA
+    */
     LED_Init();
 
 
     /*
-      Tao Task 1:
-     
-      PA0 -> 0.1 Hz
-     
-      256 la kich thuoc stack cua task, don vi word cua MCU.
-     */
+    =====================================================
+    TAO TASK 1
+
+    PA0
+    0.1 Hz
+
+    &led1_config duoc truyen vao LED_Task
+    =====================================================
+    */
+
     (void)xTaskCreate(
-        LED1_Task,
+        LED_Task,
         "LED1",
         256U,
-        NULL,
+        &led1_config,
         1U,
         NULL
     );
 
 
     /*
-     Tao Task 2:
-     
-      PA1 -> 1 Hz
-     */
+    =====================================================
+    TAO TASK 2
+
+    PA1
+    1 Hz
+    =====================================================
+    */
+
     (void)xTaskCreate(
-        LED2_Task,
+        LED_Task,
         "LED2",
         256U,
-        NULL,
+        &led2_config,
         1U,
         NULL
     );
 
 
     /*
-     * Tao Task 3:
-     *
-     * PA2 -> 10 Hz
-     */
+    =====================================================
+    TAO TASK 3
+
+    PA2
+    10 Hz
+    =====================================================
+    */
+
     (void)xTaskCreate(
-        LED3_Task,
+        LED_Task,
         "LED3",
         256U,
-        NULL,
+        &led3_config,
         1U,
         NULL
     );
 
 
     /*
-     Khoi dong FreeRTOS Scheduler.
-    
-     */
+    Khoi dong FreeRTOS Scheduler
+
+    Tu day Scheduler bat dau quan ly 3 task
+    */
     vTaskStartScheduler();
 
+
+    /*
+    Scheduler binh thuong khong return
+    */
     while (1)
     {
     }
+
+    return 0;
 }
-
-

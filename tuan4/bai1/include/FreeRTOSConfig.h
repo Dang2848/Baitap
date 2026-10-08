@@ -1,8 +1,8 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-/* STM32F103C8T6: su dung HSI mac dinh 8 MHz */
-#define configCPU_CLOCK_HZ                       ( 8000000UL )
+/* STM32F103C8T6: 72 MHz */
+#define configCPU_CLOCK_HZ                       ( 72000000UL )
 #define configTICK_RATE_HZ                       ( 1000U )
 
 #define configUSE_PREEMPTION                     1
